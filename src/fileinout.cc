@@ -57,76 +57,18 @@ int FileInOut::Open_Input_Channels()
     ///// First looks into the channels file and extracts the file list /////
 
     m_channels.clear();
-    FILE *chanfd;
-    chanfd = fopen((*m_config).CHANNELSFILE.c_str(), "r");
-    if(chanfd == NULL)
-    {
-        char tmp_string[1024]; sprintf(tmp_string, "Error Opening file %s\n",(*m_config).CHANNELSFILE.c_str());
-        m_log.print_this(tmp_string, 10);
-        exit(1);
-    }
-
-    int count=0;
-    int scroll=0;
-    int num_files = 0; //counts the number of files in the channels file
-
-    char tmp_string[1024]; sprintf(tmp_string, "Extracting channel information for show %s\n", (*m_config).SHOWNAME.c_str());
-    m_log.print_this(tmp_string, 1);
-
-    char line[4096];
-    while(fgets(line, 4096, chanfd) != NULL)
-    {
-        //check if it's the line we want
-        if(!strncmp(line, (*m_config).SHOWNAME.c_str(), (*m_config).SHOWNAME.length()))
-        {
-            count = (*m_config).SHOWNAME.length(); //we start after the show ID
-            while(line[count] != '\0' && line[count] != '\n' && line[count] != '\r') //'\r' for windows files
-            {
-                count++; //from the space to the string
-                //new file ending
-                char *tmp_channelName = new char[2048];
-                m_channels.push_back(tmp_channelName);
-                scroll = count; //the beginning of this string
-                while(line[count] != ' ' && line[count] != '\0' && line[count] != '\n' && line[count] != '\r')
-                {
-                    m_channels[num_files][count-scroll] = line[count];
-                    count++;
-                }
-                m_channels[num_files][count-scroll] = '\0';
-
-                char tmp_string[1024]; sprintf(tmp_string, "File %d: %s\n",num_files, m_channels[num_files]);
-                m_log.print_this(tmp_string, 1);
-                num_files++;
-            }
-        }
-    }
-    fclose(chanfd);
-    //check whether we did find the channel info
-    if(num_files == 0)
-    {
-      printf("[ERROR]: No information on showID %s was found in channels file %s\n", (*m_config).SHOWNAME.c_str(), (*m_config).CHANNELSFILE.c_str());
-      exit(-1);
-    }
-
-    m_numFiles = num_files;
+    m_numFiles = 1;
 
     ////// Then opens each file and gets its channel#, if it is >1, it creates temporal files
     ////// and stores the individual data
 
     char file_name[1024];
+    sprintf(file_name, "%s", (*m_config).CHANNELSFILE.c_str());
+  
     int num_channels = 0;
     for(int count=0; count< m_numFiles; count++)
     {
-        //if((*m_config).full_path)
-        //{
-        sprintf(file_name,"%s/%s", (*m_config).AUDIOROOT.c_str(), m_channels[count]);
         printf("Filename: %s\n", file_name);
-        //}
-        //else
-        //{
-        //  sprintf(file_name,"%s%s/%s%s.sph",(*m_config).AUDIOROOT.c_str(), (*m_config).SHOWNAME.c_str(), (*m_config).SHOWNAME.c_str(), m_channels[count]);
-        //}
-
         //retrieve the extension of the input file (we expect it to have length 3)
         strncpy(input_file_extension, &file_name[strlen(file_name)-3], 3);
         input_file_extension[3]='\0';
@@ -138,33 +80,6 @@ int FileInOut::Open_Input_Channels()
 
         if(inputfd[num_channels] == NULL)
         {
-        /*
-        //sometimes we have a sph file with .wav extension. Here is a dirty way to check if that's the problem
-      if(!(*m_config).full_path)
-      {
-        //we construct the file_name2 as the initial, substituting sph by wav
-        char file_name2[1024];
-        strcpy(file_name2, file_name);
-        strcpy(&file_name2[strlen(file_name2)-3], "wav");
-
-        file_info.format = 0; //mandatory when opening for reading
-        inputfd[num_channels] = sf_open(file_name2, SFM_READ, &(file_info));
-
-        if(inputfd[num_channels] == NULL)
-        {
-          char tmp_string[1024]; sprintf(tmp_string, "ERROR: Input file %s open error\nERROR: Input file %s open error\n", file_name, file_name2);
-          m_log.print_this(tmp_string, 10);
-          exit(1);
-        }
-        else
-        {
-          //opened correctly, replace the correct file name
-          strcpy(file_name, file_name2);
-        }
-      }
-      else
-      {
-      */
         char tmp_string[1024];
         snprintf(tmp_string,
           sizeof(tmp_string),
@@ -196,118 +111,6 @@ int FileInOut::Open_Input_Channels()
 
         //save the original input format
         file_input_info = file_info;
-
-        /*
-    //check the sampling rate: if modified, converts to sph, 16k
-    //TODO: need to make BeamformIt independent of the sampling rate!!!!
-    if(file_info.samplerate != 16000)
-    {
-        char tmp_string[1024]; sprintf(tmp_string, "Samplerate is %d, Beamformit works optimally for 16K files\n",file_info.samplerate);
-        m_log.print_this(tmp_string, 1);
-        //create the name
-        char file_out[512];
-        sprintf(file_out,"%s%s_f%d_16k.wav",(*m_config).RESULTPATH.c_str(), (*m_config).SHOWNAME.c_str(), count);
-        sprintf(tmp_string, "Creating wav file (float point) at 16k (little endian) in %s\n", file_out);
-        m_log.print_this(tmp_string, 1);
-
-        int number_samples = file_info.frames;
-
-        int samplerate_in = file_info.samplerate;
-
-
-        SNDFILE* outputfd;
-        file_info.samplerate = 16000; //force to be 16K
-        int samplerate_out = file_info.samplerate;
-
-        if(!sf_format_check(&(file_info)))
-        {
-            m_log.print_this("WARNING: Something is wrong with the file description\n", 5);
-        }
-
-        //change format to WAV float from whatever was before
-        file_info.format &= ~SF_FORMAT_TYPEMASK; //put to 0 the format bits
-        file_info.format |= SF_FORMAT_WAV; //setting them to NIST SPH
-        file_info.format &= ~SF_FORMAT_ENDMASK; //set endianness
-        file_info.format |= SF_ENDIAN_CPU;
-        file_info.format &= ~SF_FORMAT_SUBMASK;
-        file_info.format |= SF_FORMAT_FLOAT;
-
-        outputfd = sf_open(file_out, SFM_WRITE, &(file_info));
-        if(outputfd == NULL)
-        {
-            char tmp_string[1024]; sprintf(tmp_string, "ERROR: output file %s open error\n", file_out);
-            m_log.print_this(tmp_string, 10);
-            exit(1);
-        }
-
-        float input_data[samplerate_in * file_info.channels]; //1s worth of data
-        float output_data[samplerate_out * file_info.channels]; //1s worth of data
-
-        //create a libsamplerate converter instance
-        SRC_STATE* convert;
-        int convert_error;
-        SRC_DATA conv_data;
-        convert = src_new(SRC_SINC_BEST_QUALITY, file_info.channels, &convert_error) ;
-        if(convert == NULL)
-        {
-            char tmp_string[1024]; sprintf(tmp_string, "Samplerate conversor error: %s\n", src_strerror(convert_error));
-            m_log.print_this(tmp_string, 10);
-            exit(1);
-        }
-
-        conv_data.data_in = input_data;
-        conv_data.data_out = output_data;
-        conv_data.src_ratio = (double)(samplerate_out)/samplerate_in;
-
-        int read_pointer = 0;
-        int write_pointer = 0;
-        int end_loop = 0;
-        while(read_pointer < number_samples)
-        {
-            //read data in
-            sf_seek(inputfd[num_channels], read_pointer, SEEK_SET);
-            int frames_in = sf_readf_float(inputfd[num_channels], conv_data.data_in, samplerate_in);
-
-            if(frames_in < samplerate_in)
-            {
-                end_loop = 1;
-            }
-
-            //convert samplerate
-            conv_data.input_frames = (long)(frames_in);
-            conv_data.output_frames = (long)(samplerate_out);
-            conv_data.end_of_input = end_loop;
-
-            convert_error = src_process(convert, &conv_data);
-            if(convert_error != 0)
-            {
-                char tmp_string[1024]; sprintf(tmp_string, "Conversion error occurred: %s\n", src_strerror(convert_error));
-                m_log.print_this(tmp_string, 10);
-                exit(1);
-            }
-            read_pointer += conv_data.input_frames_used;
-
-            //write the out data
-            sf_seek(outputfd, write_pointer, SEEK_SET);
-            sf_writef_float(outputfd, conv_data.data_out, conv_data.output_frames_gen);
-            write_pointer += conv_data.output_frames_gen;
-
-        }
-
-        src_delete(convert) ;
-        sf_close(outputfd);
-
-        //finally, close the current input file and reopen the new one
-        sf_close(inputfd[num_channels]);
-        file_info.format = 0; //mandatory when opening for reading
-        inputfd[num_channels] = sf_open(file_out, SFM_READ, &(file_info));
-
-    }
-    */
-
-
-    ////////////////
-
     //check the number of channels
     if(file_info.channels > 1)
     {
@@ -641,6 +444,8 @@ void FileInOut::delays_to_file(vector<vector<vector<int> > > & finalDelays, vect
     {
       fprintf(delfd," %d %f ",finalDelays[channel_count][count][0], finalXcorrValues[channel_count][count][0]);
       fprintf(delfd2," %d %f ",finalDelays[channel_count][count][1], finalXcorrValues[channel_count][count][1]);
+      // fprintf(delfd," %d ",finalDelays[channel_count][count][0]);
+      // fprintf(delfd2," %d ",finalDelays[channel_count][count][1]);
 
     }
     fprintf(delfd,"\n");

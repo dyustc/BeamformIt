@@ -1116,8 +1116,10 @@ void DelaySum::Channels_Sum(int best_out)
         m_log.print_this(tmp_string, 10);
         exit(1);
       }
+      // printf("%d %d ", start_frame, start_frame + m_chanFramesRead[channel_count] - 1);
 
     }
+    // printf("\n");
 
     //we compute the pairwise xcorr of all channels
     compute_local_xcorr_values(chan_out);

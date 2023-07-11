@@ -19,7 +19,7 @@ set (CMAKE_CXX_FLAGS_DEBUG         "-ggdb -DLINUX -Wall -W -Wno-unknown-pragmas 
 set (CMAKE_C_FLAGS_RELEASE         "-D_REENTRANT -Wall -DDEPURACION -DNDEBUG -O3 -Wno-unused-variable")
 set (CMAKE_CXX_FLAGS_RELEASE       "-DLINUX -Wall -W -O3 -DNDEBUG -Wno-unknown-pragmas -Wno-unused-result -Wno-unused-variable")
 
-set (LIBSND_INSTALL_DIR "" CACHE FILEPATH "Directory where libsndfile was installed")
+set(LIBSND_INSTALL_DIR "/opt/homebrew/Cellar/libsndfile/1.2.0_1")
 
 ##find libraries installed in the system
 FIND_LIBRARY(LIBSNDFILE sndfile ${LIBSND_INSTALL_DIR}/lib)
